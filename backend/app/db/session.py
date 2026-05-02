@@ -1,10 +1,10 @@
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.config import settings
-from app.db.base import Base
 
 
 engine = None
@@ -34,19 +34,12 @@ def get_sessionmaker():
 
 
 async def init_db() -> None:
-    """Create tables for local Phase 1 development.
+    """Validate database connectivity.
 
-    Alembic can replace this in production, but the scaffold currently ships
-    without migrations.
+    Schema changes are managed through Alembic migrations.
     """
-    import app.models.email_draft  # noqa: F401
-    import app.models.job  # noqa: F401
-    import app.models.profile  # noqa: F401
-    import app.models.scan_log  # noqa: F401
-    import app.models.user  # noqa: F401
-
     async with get_engine().begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("SELECT 1"))
 
 
 async def get_db() -> AsyncIterator[AsyncSession]:
