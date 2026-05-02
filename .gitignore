@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Frontend
+node_modules/
+dist/
+.vite/
+
+# Logs and local runtime files
+*.log
+.logs/
+celerybeat-schedule
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
