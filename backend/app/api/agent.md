@@ -32,7 +32,8 @@ class ProfileResponse(BaseModel):
 ```
 
 ## CORS
-Configured in `main.py`. In dev: allow `http://localhost:5173`.
+Configured in `main.py` from `app/core/config.py`.
+In dev: allow both `http://localhost:5173` and `http://127.0.0.1:5173` because Vite may be opened through either hostname.
 In prod: restrict to actual frontend domain.
 
 ## Current API Quality Notes

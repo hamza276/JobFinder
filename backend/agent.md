@@ -47,9 +47,11 @@ REACT_AGENT_SEARCH_RESULTS_PER_QUERY=20
 SCRAPLING_RETRIES=2
 SCRAPLING_API_URL=https://scraplingbackend.app.digitalsgalaxy.com
 SEARXNG_URL=https://searxngapp.app.digitalsgalaxy.com
+CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173","http://localhost:3000","http://127.0.0.1:3000"]
 ```
 
 These limits keep scans bounded for SaaS reliability while still allowing enough search/scrape coverage for useful results.
+Local browser testing supports both `localhost` and `127.0.0.1` frontend origins so Vite can be opened either way without CORS preflight failures.
 
 ## Running
 ```powershell
