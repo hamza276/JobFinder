@@ -73,10 +73,14 @@ class EmailComposer:
 
         try:
             data = await self.llm.complete_json(prompt=prompt, system=EMAIL_SYSTEM)
+            subject = str(data.get("subject") or "").strip()
+            body = str(data.get("body") or "").strip()
+            if not subject or not body:
+                raise ValueError("LLM returned an incomplete email draft")
             return ComposedEmail(
                 to=contact_email,
-                subject=data.get("subject", f"Application for {job.title}"),
-                body=data.get("body", ""),
+                subject=subject,
+                body=body,
                 generated_at=datetime.utcnow(),
             )
         except Exception as e:

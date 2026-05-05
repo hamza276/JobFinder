@@ -2,7 +2,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,6 +34,16 @@ class ProfileCreateRequest(BaseModel):
     languages: list[str] = Field(default_factory=lambda: ["English", "Urdu"])
     bio: str | None = None
 
+    @field_validator("skills", "preferred_locations", "preferred_job_types", "industries", "languages", mode="before")
+    @classmethod
+    def clean_string_list(cls, value):
+        return _clean_string_list(value)
+
+    @model_validator(mode="after")
+    def validate_salary_range(self):
+        _ensure_salary_range(self.salary_min, self.salary_max)
+        return self
+
 
 class ProfileUpdateRequest(BaseModel):
     full_name: str | None = Field(default=None, min_length=1, max_length=255)
@@ -48,6 +58,16 @@ class ProfileUpdateRequest(BaseModel):
     salary_max: int | None = Field(default=None, ge=0)
     languages: list[str] | None = None
     bio: str | None = None
+
+    @field_validator("skills", "preferred_locations", "preferred_job_types", "industries", "languages", mode="before")
+    @classmethod
+    def clean_string_list(cls, value):
+        return _clean_string_list(value)
+
+    @model_validator(mode="after")
+    def validate_salary_range(self):
+        _ensure_salary_range(self.salary_min, self.salary_max)
+        return self
 
 
 class ProfileResponse(BaseModel):
@@ -82,6 +102,27 @@ def _normalize_profile_payload(payload: BaseModel) -> dict[str, Any]:
     if isinstance(education, BaseModel):
         data["education"] = education.model_dump()
     return data
+
+
+def _clean_string_list(value) -> list[str] | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = value.split(",")
+    cleaned = []
+    seen = set()
+    for item in value:
+        text = str(item).strip()
+        key = text.lower()
+        if text and key not in seen:
+            cleaned.append(text)
+            seen.add(key)
+    return cleaned
+
+
+def _ensure_salary_range(salary_min: int | None, salary_max: int | None) -> None:
+    if salary_min is not None and salary_max is not None and salary_min > salary_max:
+        raise ValueError("salary_min cannot be greater than salary_max")
 
 
 @router.post("", response_model=ProfileCreateResponse, status_code=status.HTTP_201_CREATED)
@@ -130,6 +171,10 @@ async def update_profile(
     data = _normalize_profile_payload(payload)
     for field, value in data.items():
         setattr(profile, field, value)
+    try:
+        _ensure_salary_range(profile.salary_min, profile.salary_max)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     await db.commit()
     await db.refresh(profile)

@@ -1,6 +1,6 @@
 """
 LLM Provider abstraction layer.
-Never import openai/anthropic directly outside this package.
+Never import Groq/Anthropic SDKs directly outside this package.
 """
 from abc import ABC, abstractmethod
 import json
@@ -26,12 +26,12 @@ class BaseLLMProvider(ABC):
         pass
 
 
-class OpenAIProvider(BaseLLMProvider):
-    def __init__(self, model: str = "gpt-4o"):
-        from openai import AsyncOpenAI
+class GroqProvider(BaseLLMProvider):
+    def __init__(self, model: str = "llama-3.3-70b-versatile"):
+        from groq import AsyncGroq
         from app.core.config import settings
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = model or "gpt-4o"
+        self.client = AsyncGroq(api_key=settings.GROQ_API_KEY)
+        self.model = model or "llama-3.3-70b-versatile"
 
     async def complete(self, prompt: str, system: str = "") -> str:
         messages = []
@@ -44,7 +44,7 @@ class OpenAIProvider(BaseLLMProvider):
             )
             return resp.choices[0].message.content
         except Exception as e:
-            raise LLMError(f"OpenAI error: {e}") from e
+            raise LLMError(f"Groq error: {e}") from e
 
     async def complete_json(self, prompt: str, system: str = "", schema: dict = None) -> dict:
         json_system = (system + "\nAlways respond with valid JSON only. No markdown, no backticks.").strip()
@@ -115,10 +115,10 @@ def get_llm_provider() -> BaseLLMProvider:
     from app.core.config import settings
     provider = settings.LLM_PROVIDER.lower()
     model = settings.LLM_MODEL or ""
-    if provider == "openai":
-        return OpenAIProvider(model=model)
+    if provider == "groq":
+        return GroqProvider(model=model)
     elif provider == "anthropic":
         return AnthropicProvider(model=model)
     elif provider == "ollama":
         return OllamaProvider(model=model)
-    raise ValueError(f"Unknown LLM provider: {provider}. Use 'openai', 'anthropic', or 'ollama'.")
+    raise ValueError(f"Unknown LLM provider: {provider}. Use 'groq', 'anthropic', or 'ollama'.")

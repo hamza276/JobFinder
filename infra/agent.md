@@ -1,38 +1,45 @@
-# Infrastructure — Docker Compose
+# Infrastructure - Docker Compose
 
-## Services in docker-compose.yml
-1. **postgres** — PostgreSQL 15
-2. **redis** — Redis 7 (Celery broker + cache)
-3. **searxng** — Self-hosted meta-search engine
+## Services In `docker-compose.yml`
+1. **postgres** - PostgreSQL 15
+2. **redis** - Redis 7 for Celery broker/cache
+3. **searxng** - optional local fallback meta-search engine
 
-## SearXNG Configuration (`searxng/settings.yml`)
-Key settings:
-- `server.secret_key` — set a random string
-- `search.formats` — enable `json` format (required for API use)
-- Enable engines: google, bing, duckduckgo, indeed, linkedin (if available)
-- Set `outgoing.request_timeout` to 10 seconds
+## SearXNG Configuration
+The backend currently defaults to the hosted search endpoint:
+
+```env
+SEARXNG_URL=https://searxngapp.app.digitalsgalaxy.com
+```
+
+Use the Docker SearXNG service only when testing a local fallback endpoint at `http://localhost:8888`.
+
+For local fallback, `searxng/settings.yml` must keep:
+- `search.formats` including `json`, because the backend calls `/search?format=json`.
+- Engines that can surface job URLs.
+- Reasonable timeout settings so scans do not hang.
 
 ## Ports
 | Service | Port |
 |---|---|
 | PostgreSQL | 5432 |
 | Redis | 6379 |
-| SearXNG | 8888 |
-| FastAPI (manual) | 8000 |
-| React (manual) | 5173 |
+| SearXNG local fallback | 8888 |
+| FastAPI manual run | 8000 |
+| React manual run | 5173 |
 
-## Starting Infrastructure
-```bash
+## Starting Local Infrastructure
+```powershell
 cd infra
-docker-compose up -d
+docker compose up -d
 
-# Verify
-docker-compose ps
-curl http://localhost:8888/search?q=test&format=json   # test SearXNG
+# Verify local fallback SearXNG
+curl http://localhost:8888/search?q=test&format=json
 ```
 
 ## Notes
-- SearXNG is the only search component in Docker.
-- FastAPI and React run directly (not in Docker) in development.
-- For production, add Nginx reverse proxy and containerize all services.
-- Scrapling runs inside the backend process. Install its browser dependencies with `scrapling install` if you use dynamic or stealth fetch modes.
+- The production/default search component is the hosted SearXNG URL in backend config.
+- Docker SearXNG is optional local fallback infrastructure.
+- FastAPI and React run directly in development.
+- Scrapling scraping runs through `https://scraplingbackend.app.digitalsgalaxy.com`; no local Scrapling browser install is required.
+- If infrastructure behavior changes, update this `agent.md` in the same task.

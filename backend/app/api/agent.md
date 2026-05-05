@@ -34,3 +34,9 @@ class ProfileResponse(BaseModel):
 ## CORS
 Configured in `main.py`. In dev: allow `http://localhost:5173`.
 In prod: restrict to actual frontend domain.
+
+## Current API Quality Notes
+- Profile payloads clean duplicate string-list values and reject invalid salary ranges.
+- Job feed results are sorted by calibrated relevance score, then fetch time.
+- Manual scan trigger uses Redis cooldown and queues Celery work instead of blocking the request.
+- If route schemas or validation behavior changes, update this `agent.md` during the same task.

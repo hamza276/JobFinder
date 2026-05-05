@@ -1,7 +1,7 @@
 # LLM Service — Pluggable Provider Interface
 
 ## Purpose
-Abstract away all LLM providers behind a single interface. No other service should ever import `openai`, `anthropic`, or any LLM SDK directly. Everything goes through `base.py`.
+Abstract away all LLM providers behind a single interface. No other service should ever import `groq`, `anthropic`, or any LLM SDK directly. Everything goes through `base.py`.
 
 ## Interface
 
@@ -29,9 +29,9 @@ class BaseLLMProvider(ABC):
 
 ## Providers
 
-### `openai_provider.py`
-- Uses `openai` Python SDK
-- Model: `gpt-4o` by default (configurable via `LLM_MODEL` env var)
+### Groq provider
+- Uses `groq` Python SDK
+- Model: `llama-3.3-70b-versatile` by default (configurable via `LLM_MODEL` env var)
 - Implements all 3 methods
 
 ### `anthropic_provider.py`
@@ -48,9 +48,9 @@ class BaseLLMProvider(ABC):
 `get_llm_provider()` in `base.py` — reads `LLM_PROVIDER` env var and returns correct instance.
 ```python
 def get_llm_provider() -> BaseLLMProvider:
-    provider = settings.LLM_PROVIDER  # "openai" | "anthropic" | "ollama"
-    if provider == "openai":
-        return OpenAIProvider()
+    provider = settings.LLM_PROVIDER  # "groq" | "anthropic" | "ollama"
+    if provider == "groq":
+        return GroqProvider()
     elif provider == "anthropic":
         return AnthropicProvider()
     elif provider == "ollama":

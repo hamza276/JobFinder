@@ -7,6 +7,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+pip-tmp/
 
 # Environment
 .env
@@ -21,7 +22,7 @@ dist/
 # Logs and local runtime files
 *.log
 .logs/
-celerybeat-schedule
+celerybeat-schedule*
 
 # OS/editor
 .DS_Store

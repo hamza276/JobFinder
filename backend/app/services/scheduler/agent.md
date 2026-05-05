@@ -1,69 +1,30 @@
-# Scheduler Service — Daily Job Fetching
+# Scheduler Service - Scan Orchestration
 
 ## Purpose
-Runs the ReAct agent pipeline daily for every user in the system.
+Runs job discovery for users through Celery tasks and direct service calls.
 
-## How It Works
-1. **Celery Beat** triggers `scan_all_users` task every day at **6:00 AM PKT** (01:00 UTC)
-2. `scan_all_users` fetches all active user IDs from DB
-3. For each user, it dispatches a separate `scan_user_jobs` task to the Celery queue
-4. Each `scan_user_jobs` task:
-   - Loads the user's `UserProfile` from DB
-   - Instantiates `ReActJobAgent`
-   - Calls `agent.run(profile)` → returns list of `ScoredJob`
-   - Saves new jobs to DB (skips duplicates by URL)
-   - Generates `EmailDraft` for jobs where `contact_email` is found
-   - Updates `last_scanned_at` on the user's profile
+## Daily Flow
+1. Celery Beat triggers `scan_all_users` at 6:00 AM PKT.
+2. `scan_all_users` dispatches `scan_user_jobs` for each user.
+3. `scan_user_jobs` calls `run_scan_for_user(user_id, db_session)`.
+4. The scan loads the profile, runs `ReActJobAgent`, saves new jobs, generates email drafts where contact emails exist, updates `last_scanned_at`, and writes a `ScanLog`.
 
-## Schedule Configuration (in `celery_app.py`)
-```python
-app.conf.beat_schedule = {
-    "daily-job-scan": {
-        "task": "app.workers.tasks.scan_all_users",
-        "schedule": crontab(hour=1, minute=0),   # 6 AM PKT = 1 AM UTC
-    }
-}
-```
+## `daily_runner.py`
+- `run_scan_for_user`: full orchestration and scan logging.
+- `save_jobs_to_db`: persists new jobs and skips duplicate source URLs.
+- `generate_emails_for_new_jobs`: idempotently creates one `EmailDraft` per job.
+
+## Current Guarantees
+- Scan failures are captured in `ScanResult.errors`.
+- Agent scans are wrapped in `REACT_AGENT_SCAN_TIMEOUT_SECONDS`; timeout scans are marked `partial`.
+- DB rollback is attempted on scan failure.
+- `ScanLog` is written in the `finally` path when a profile was loaded.
+- Email draft generation skips jobs that already have a draft.
+- Only saved jobs with `contact_email` are passed to automatic email generation.
 
 ## Manual Trigger
-Users can click "Scan Now" in the dashboard.
-This calls `POST /api/jobs/trigger` → which directly calls `scan_user_jobs.delay(user_id)`.
-Rate limited: max 1 manual trigger per user per hour (stored in Redis).
+`POST /api/jobs/trigger` queues `scan_user_jobs.delay(user_id)` and is rate-limited through Redis by `MANUAL_SCAN_COOLDOWN_SECONDS`.
 
-## `daily_runner.py` Functions
-```python
-async def run_scan_for_user(user_id: str, db_session) -> ScanResult:
-    """
-    Full scan pipeline for one user.
-    Returns ScanResult with: jobs_found, jobs_new, jobs_skipped, errors
-    """
-
-async def save_jobs_to_db(jobs: List[ScoredJob], user_id: str, db_session) -> int:
-    """
-    Upsert jobs. Returns count of NEW jobs added (not duplicates).
-    """
-
-async def generate_emails_for_new_jobs(jobs: List[Job], user_id: str, db_session):
-    """
-    For jobs with contact_email, generate and save EmailDraft.
-    Runs after save_jobs_to_db.
-    """
-```
-
-## Error Handling
-- If ReAct agent fails for a user: log error, continue to next user (don't fail all)
-- If Scrapling cannot fetch a protected page: log the URL, continue with the next candidate, and mark scan as "partial" if needed
-- All scan results logged to DB table `scan_logs` for debugging
-
-## Scan Log Model (add to models/)
-```
-scan_logs table:
-  id              UUID
-  user_id         UUID FK
-  started_at      TIMESTAMP
-  finished_at     TIMESTAMP
-  status          VARCHAR   ← "success" | "partial" | "failed"
-  jobs_found      INTEGER
-  jobs_new        INTEGER
-  error_message   TEXT
-```
+## Notes For Future Changes
+- Keep Celery tasks thin; orchestration belongs here.
+- If scan result fields or persistence semantics change, update this file and `backend/tests/test_scheduler_services.py`.

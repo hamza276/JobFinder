@@ -1,217 +1,236 @@
-# PKJobs — AI-Powered Job Discovery Platform for Pakistan
+# PKJobs - AI-Powered Job Discovery Platform for Pakistan
 
 ## Project Purpose
-PKJobs is a fullstack AI platform that helps Pakistani professionals find jobs without manually browsing LinkedIn, Indeed, or Rozee. The user fills in their profile once. A ReAct LLM agent then runs daily per user — crafting intelligent search queries, discovering job listings across the web, scraping full job descriptions, scoring relevance, and generating personalized application emails.
+PKJobs is a pure AI-as-a-service job discovery product for Pakistani professionals. It helps users find jobs without manually browsing LinkedIn, Indeed, Rozee, and company career pages. A user fills in their profile once. A ReAct-style LLM pipeline then runs per user, builds search queries, discovers jobs, scrapes job descriptions, scores relevance, and generates application emails.
 
-**The user never has to leave the platform to find a job. They only leave to apply.**
+The user stays inside the platform for discovery and leaves only when they decide to apply.
+Do not frame this codebase as a cybersecurity product; security work here means normal production hardening for an AI job platform.
 
----
+## Current Runtime Setup
+- Python: 3.13.1
+- Root virtual environment: `.venv`
+- Root Python dependency file: `requirements.txt`
+- Backend environment file: `backend/.env`
+- Active LLM provider: `groq`
+- Active LLM model: `llama-3.3-70b-versatile`
+- Groq key is stored locally in `backend/.env`; never copy real API keys into tracked docs or examples.
 
 ## High-Level Architecture
 
+```text
+React frontend
+  REST API
+FastAPI backend
+  Profile service
+  Job feed service
+  Email service
+  Celery workers
+    ReAct job pipeline
+      Query planning with LLM
+      SearXNG search
+      Hosted Scrapling page fetch
+      JD parsing with LLM
+      Relevance scoring with LLM
+      Email composition with LLM
 ```
-React Frontend
-      │
-      │ REST / SSE
-      ▼
-FastAPI Backend
-      │
-      ├── Profile Service     → stores user background, skills, preferences
-      ├── Job Feed Service    → returns scored + ranked jobs per user
-      ├── Email Service       → returns LLM-composed application emails
-      │
-      └── Celery Workers (async)
-                │
-                └── ReAct Agent Pipeline (runs daily per user)
-                          │
-                          ├── Step 1: Query Planner    (LLM reads profile → makes search queries)
-                          ├── Step 2: SearXNG Search   (runs queries → gets URLs)
-                          ├── Step 3: Scrapling Scraper (fetches full JD from URLs)
-                          ├── Step 4: JD Parser        (LLM extracts structured info)
-                          ├── Step 5: Relevance Scorer (LLM scores job vs profile)
-                          └── Step 6: Email Composer   (LLM writes application email if contact found)
-```
-
----
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 18 + Vite + TailwindCSS + Zustand |
-| Backend | FastAPI (Python 3.11) |
-| Task Queue | Celery + Redis |
-| Scheduler | Celery Beat (daily cron per user) |
-| Database | PostgreSQL (via SQLAlchemy async) |
+| Frontend | React 18, Vite, TailwindCSS, Zustand |
+| Backend | FastAPI, Python 3.13.1 |
+| Task queue | Celery, Redis |
+| Scheduler | Celery Beat |
+| Database | PostgreSQL, SQLAlchemy async, Alembic |
 | Cache | Redis |
-| Search | SearXNG (self-hosted, via Docker) |
-| Scraping | Scrapling open-source fetchers |
-| LLM | Pluggable via `backend/app/services/llm/base.py` (OpenAI / Anthropic / Ollama) |
+| Search | SearXNG |
+| Scraping | Hosted Scrapling REST API |
+| LLM | Groq by default, pluggable via `backend/app/services/llm/base.py` |
 | Infrastructure | Docker Compose |
-
----
 
 ## Repository Structure
 
-```
+```text
 pkjobs/
-├── agent.md                          ← YOU ARE HERE
-├── frontend/                         ← React app (Vite)
-│   ├── agent.md
-│   └── src/
-│       ├── pages/
-│       │   ├── Onboarding/           ← Multi-step profile wizard
-│       │   ├── Dashboard/            ← Stats + recent activity
-│       │   ├── JobFeed/              ← Creative job discovery UI
-│       │   └── EmailDraft/           ← View + copy generated email
-│       ├── components/
-│       │   ├── JobCard/              ← Individual job card component
-│       │   ├── ProfileWizard/        ← Wizard step components
-│       │   ├── EmailModal/           ← Email preview modal
-│       │   └── common/               ← Buttons, inputs, loaders
-│       ├── services/                 ← Axios API wrappers
-│       ├── hooks/                    ← Custom React hooks
-│       ├── store/                    ← Zustand state
-│       └── styles/                   ← Tailwind config + globals
-│
-├── backend/
-│   ├── agent.md
-│   └── app/
-│       ├── api/
-│       │   ├── agent.md
-│       │   └── routes/
-│       │       ├── profile.py        ← POST /profile, GET /profile/{id}
-│       │       ├── jobs.py           ← GET /jobs/{user_id}, POST /jobs/trigger
-│       │       └── email.py          ← GET /email/{job_id}
-│       ├── services/
-│       │   ├── agent.md
-│       │   ├── fetcher/              ← ReAct scraping pipeline
-│       │   │   ├── agent.md
-│       │   │   ├── react_agent.py    ← Main ReAct agent orchestrator
-│       │   │   ├── query_planner.py  ← LLM → search queries
-│       │   │   ├── searxng_client.py ← SearXNG search wrapper
-│       │   │   └── scrapling_client.py← Scrapling scrape wrapper
-│       │   ├── parser/
-│       │   │   ├── agent.md
-│       │   │   ├── jd_extractor.py   ← LLM extracts structured JD fields
-│       │   │   └── email_finder.py   ← Finds contact email in JD
-│       │   ├── llm/
-│       │   │   ├── agent.md
-│       │   │   ├── base.py           ← Abstract LLM interface
-│       │   │   ├── openai_provider.py
-│       │   │   ├── anthropic_provider.py
-│       │   │   └── email_composer.py ← Generates application emails
-│       │   └── scheduler/
-│       │       ├── agent.md
-│       │       └── daily_runner.py   ← Celery Beat task per user
-│       ├── models/
-│       │   ├── agent.md
-│       │   ├── user.py
-│       │   ├── profile.py
-│       │   ├── job.py
-│       │   └── email_draft.py
-│       ├── workers/
-│       │   ├── agent.md
-│       │   └── celery_app.py
-│       ├── core/
-│       │   ├── config.py             ← All env vars + settings
-│       │   └── logging.py
-│       └── db/
-│           ├── session.py            ← Async DB session
-│           └── base.py               ← SQLAlchemy base
-│
-├── infra/
-│   ├── agent.md
-│   ├── docker-compose.yml
-│   └── searxng/
-│       └── settings.yml
-│
-└── docs/
-    ├── agent.md
-    └── flow.md                       ← Full user + system flow
+  agent.md
+  requirements.txt
+  frontend/
+    agent.md
+    package.json
+    src/
+      pages/
+      components/
+      services/
+      hooks/
+      store/
+      styles/
+  backend/
+    agent.md
+    requirements.txt
+    .env.example
+    app/
+      main.py
+      api/routes/
+      core/
+        config.py
+        logging.py
+      db/
+      models/
+      services/
+        fetcher/
+        llm/
+          base.py
+          email_composer.py
+        parser/
+        scheduler/
+      workers/
+        celery_app.py
+    alembic/
+  infra/
+    docker-compose.yml
+    searxng/
+  docs/
+    flow.md
 ```
 
----
+## LLM Rules
+- All LLM calls must go through `backend/app/services/llm/base.py`.
+- Do not import Groq, Anthropic, or any LLM SDK directly from routes, workers, or business services.
+- The default provider is `GroqProvider`.
+- The default model is `llama-3.3-70b-versatile`.
+- `LLM_PROVIDER`, `LLM_MODEL`, and provider API keys are read through `backend/app/core/config.py`.
 
-## Key Concepts for Codex
+## Environment Variables
 
-### 1. ReAct Agent Pattern
-The core intelligence lives in `backend/app/services/fetcher/react_agent.py`.
-It follows: **Thought → Action → Observation → Thought → ...** loop.
-- **Thought**: LLM reasons about what to do next
-- **Action**: Run SearXNG query OR scrape URL OR score job
-- **Observation**: Result of the action
-- Loop continues until agent decides it has enough jobs (default: 15-20 per user)
+`backend/.env` should include:
 
-### 2. LLM is Pluggable
-Never hardcode an LLM provider. Always go through `backend/app/services/llm/base.py`.
-The `BaseLLMProvider` interface has: `complete(prompt: str) -> str` and `complete_json(prompt: str, schema: dict) -> dict`.
-
-### 3. Profile Drives Everything
-The `UserProfile` model is the most important DB model. Every agent decision starts by reading the user's profile. Profile fields: `title`, `skills[]`, `experience_years`, `education`, `preferred_locations[]`, `preferred_job_types[]`, `industries[]`, `salary_range`, `languages[]`.
-
-### 4. Job Sources (No Restrictions)
-SearXNG searches across ALL engines. Primary targets:
-- LinkedIn Jobs, Indeed, Glassdoor (international)
-- Rozee.pk, Mustakbil.com, Bayt.com (Pakistan/regional)
-- Company career pages (direct)
-- The agent decides which URLs are worth scraping based on result quality.
-
-### 5. No Auth (Phase 1)
-Authentication is intentionally excluded in Phase 1. User is identified by `user_id` UUID. Auth (Google OAuth) comes in Phase 2.
-
----
-
-## Running the Project
-
-```bash
-# 1. Start infrastructure
-cd infra && docker-compose up -d
-
-# 2. Backend
-cd backend
-pip install -r requirements.txt
-scrapling install   # required for Scrapling dynamic/stealth browser fetchers
-uvicorn app.main:app --reload --port 8000
-
-# 3. Celery Worker
-cd backend
-celery -A app.workers.celery_app worker --loglevel=info
-
-# 4. Celery Beat (scheduler)
-cd backend
-celery -A app.workers.celery_app beat --loglevel=info
-
-# 5. Frontend
-cd frontend
-npm install && npm run dev
-```
-
----
-
-## Environment Variables (backend/.env)
-```
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/pkjobs
+```env
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/pkjobs
 REDIS_URL=redis://localhost:6379/0
-SEARXNG_URL=http://localhost:8888
+SEARXNG_URL=https://searxngapp.app.digitalsgalaxy.com
+
 SCRAPLING_FETCH_MODE=auto
+SCRAPLING_API_URL=https://scraplingbackend.app.digitalsgalaxy.com
 SCRAPLING_HEADLESS=true
 SCRAPLING_TIMEOUT_MS=30000
 SCRAPLING_WAIT_MS=1000
+SCRAPLING_RETRIES=2
 SCRAPLING_SOLVE_CLOUDFLARE=false
 SCRAPLING_PROXY=
-LLM_PROVIDER=openai          # or "anthropic" or "ollama"
-OPENAI_API_KEY=your_key_here
-ANTHROPIC_API_KEY=your_key_here
+
+LLM_PROVIDER=groq
+LLM_MODEL=llama-3.3-70b-versatile
+REACT_AGENT_MAX_JOBS=20
+REACT_AGENT_MAX_ITER=40
+REACT_AGENT_MAX_SEARCHES=8
+REACT_AGENT_MAX_SCRAPES=14
+REACT_AGENT_SCAN_TIMEOUT_SECONDS=600
+REACT_AGENT_MIN_RELEVANCE_SCORE=0.55
+REACT_AGENT_MAX_JOB_AGE_DAYS=90
+REACT_AGENT_SEARCH_RESULTS_PER_QUERY=20
+GROQ_API_KEY=your_key_here
+ANTHROPIC_API_KEY=
 OLLAMA_BASE_URL=http://localhost:11434
+
+CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
 ```
 
----
+## Running The Project
 
-## Current Phase: Phase 1
+From the project root:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+Start infrastructure:
+
+```powershell
+cd infra
+docker-compose up -d
+```
+
+Start backend:
+
+```powershell
+cd backend
+uvicorn app.main:app --reload --port 8000
+```
+
+Start Celery worker:
+
+```powershell
+cd backend
+celery -A app.workers.celery_app worker --loglevel=info
+```
+
+Start Celery Beat:
+
+```powershell
+cd backend
+celery -A app.workers.celery_app beat --loglevel=info
+```
+
+Start frontend:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Scraping runs through the hosted Scrapling REST API. No local Scrapling browser install is required for normal app runs.
+
+## Test And Verification Commands
+
+Backend unit tests:
+
+```powershell
+cd backend
+..\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+Backend syntax check:
+
+```powershell
+cd backend
+..\.venv\Scripts\python.exe -m compileall app tests
+```
+
+Python dependency check:
+
+```powershell
+cd backend
+..\.venv\Scripts\python.exe -m pip check
+```
+
+Frontend lint and production build:
+
+```powershell
+cd frontend
+npm.cmd run lint
+npm.cmd run build
+```
+
+## Engineering Notes
+- Services should stay framework-light. Do not pass FastAPI request or response objects into services.
+- Database operations should use async SQLAlchemy sessions.
+- Celery tasks should remain thin and delegate to service functions.
+- Runtime files, virtual environments, temp folders, and secrets must stay untracked.
+- Frontend API access should stay inside `frontend/src/services/`.
+
+## Current Phase
 - [x] Architecture defined
-- [ ] Profile onboarding flow
-- [ ] ReAct agent pipeline
-- [ ] Job feed UI
-- [ ] Email composer
-- [ ] Daily scheduler
+- [x] Groq configured as default LLM provider
+- [x] Python 3.13.1 root `.venv` created
+- [x] Root `requirements.txt` added
+- [x] Profile onboarding flow
+- [x] ReAct agent pipeline
+- [x] Job feed UI
+- [x] Email composer
+- [x] Daily scheduler
+- [x] Backend unit test suite
+- [x] Frontend lint/build verification
