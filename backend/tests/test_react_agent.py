@@ -205,6 +205,39 @@ class ReActAgentTests(unittest.TestCase):
         self.assertGreaterEqual(score["score"], 0.5)
         self.assertIn("Heuristic", score["reason"])
 
+    def test_fallback_queries_prioritize_accessible_sources_before_linkedin(self):
+        agent = self.make_agent(FakeLLM())
+
+        queries = agent._fallback_queries(make_profile())
+
+        self.assertIn("mustakbil.com", queries[0])
+        self.assertIn("rozee.pk", queries[1])
+        self.assertTrue(any("-linkedin" in query for query in queries))
+        self.assertTrue(all("linkedin.com" not in query for query in queries))
+
+    def test_next_unscraped_url_skips_domains_after_repeated_failures(self):
+        agent = self.make_agent(FakeLLM())
+        search_results = {
+            "https://www.mustakbil.com/jobs/job/1": SearchResult(
+                title="One",
+                url="https://www.mustakbil.com/jobs/job/1",
+                snippet="",
+                source="mustakbil",
+                is_job_listing=True,
+            ),
+            "https://www.rozee.pk/job/detail/2": SearchResult(
+                title="Two",
+                url="https://www.rozee.pk/job/detail/2",
+                snippet="",
+                source="rozee",
+                is_job_listing=True,
+            ),
+        }
+
+        url = agent._next_unscraped_url(search_results, set(), {"mustakbil.com": 2})
+
+        self.assertEqual(url, "https://www.rozee.pk/job/detail/2")
+
 
 if __name__ == "__main__":
     unittest.main()

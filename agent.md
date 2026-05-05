@@ -4,7 +4,7 @@
 PKJobs is a pure AI-as-a-service job discovery product for Pakistani professionals. It helps users find jobs without manually browsing LinkedIn, Indeed, Rozee, and company career pages. A user fills in their profile once. A ReAct-style LLM pipeline then runs per user, builds search queries, discovers jobs, scrapes job descriptions, scores relevance, and generates application emails.
 
 The user stays inside the platform for discovery and leaves only when they decide to apply.
-Do not frame this codebase as a cybersecurity product; security work here means normal production hardening for an AI job platform.
+Frame this codebase as an AI-enabled SaaS job discovery product.
 
 ## Current Runtime Setup
 - Python: 3.13.1

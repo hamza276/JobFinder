@@ -60,6 +60,7 @@ AGGREGATE_URL_PATTERNS = [
     r"linkedin\.[^/]+/jobs/?(?:\?|$)",
     r"glassdoor\.[^/]+/Job/[^?#]+-jobs-",
     r"indeed\.[^/]+/jobs(?:\?|/)?",
+    r"rozee\.pk/job/jsearch",
     r"remoterocketship\.com/jobs/[^/]+/?$",
     r"bayt\.com/.*/jobs/[^/]+/?$",
 ]

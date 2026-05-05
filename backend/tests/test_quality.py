@@ -23,6 +23,7 @@ class QualityTests(unittest.TestCase):
         self.assertTrue(is_detail_job_url("https://pk.linkedin.com/jobs/view/123"))
         self.assertFalse(is_detail_job_url("https://pk.linkedin.com/jobs/react.js-jobs"))
         self.assertTrue(is_aggregate_url("https://pk.linkedin.com/jobs/react.js-jobs"))
+        self.assertTrue(is_aggregate_url("https://www.rozee.pk/job/jsearch/q/react"))
 
     def test_extracts_detail_urls_from_linkedin_aggregate_html(self):
         urls = extract_job_urls(

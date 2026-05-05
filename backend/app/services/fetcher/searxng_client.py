@@ -28,6 +28,7 @@ JOB_LISTING_PATTERNS = [
 ]
 
 NON_JOB_PATTERNS = [
+    "linkedin.com",
     "wikipedia.org",
     "youtube.com",
     "facebook.com",

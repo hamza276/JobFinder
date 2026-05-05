@@ -13,6 +13,7 @@ class FetcherClientTests(unittest.TestCase):
         self.assertFalse(client._is_job_listing("https://youtube.com/watch?v=1", "Video", "jobs"))
         self.assertFalse(client._is_job_listing("https://weworkremotely.com/", "Remote jobs", "Remote jobs"))
         self.assertFalse(client._is_job_listing("https://www.linkedin.com/jobs", "Jobs", "Search jobs"))
+        self.assertFalse(client._is_job_listing("https://pk.linkedin.com/jobs/view/123", "React job", "Apply now"))
         self.assertFalse(client._is_job_listing("https://www.crossover.com/", "Crossover", "Remote jobs"))
 
     def test_searxng_extracts_known_sources(self):

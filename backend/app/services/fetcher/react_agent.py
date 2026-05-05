@@ -9,6 +9,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlparse
 
 from app.core.config import settings
 from app.models.profile import UserProfile
@@ -106,12 +107,13 @@ class ReActJobAgent:
         profile_summary = self._build_profile_summary(profile)
         search_count = 0
         scrape_count = 0
+        failed_domains: dict[str, int] = {}
 
         for iteration in range(self.max_iter):
             if len(collected_jobs) >= self.max_jobs:
                 break
 
-            pending_url = self._next_unscraped_url(search_results, scraped_urls)
+            pending_url = self._next_unscraped_url(search_results, scraped_urls, failed_domains)
             if not trajectory and fallback_queries and search_count < self.max_searches:
                 action = AgentAction(
                     type="search",
@@ -133,7 +135,7 @@ class ReActJobAgent:
                 )
 
             if action.type == "finish":
-                pending_url = self._next_unscraped_url(search_results, scraped_urls)
+                pending_url = self._next_unscraped_url(search_results, scraped_urls, failed_domains)
                 if pending_url:
                     action = AgentAction(
                         type="scrape",
@@ -151,7 +153,7 @@ class ReActJobAgent:
                     break
 
             if action.type == "search" and search_count >= self.max_searches:
-                pending_url = self._next_unscraped_url(search_results, scraped_urls)
+                pending_url = self._next_unscraped_url(search_results, scraped_urls, failed_domains)
                 if pending_url and scrape_count < self.max_scrapes:
                     action = AgentAction(
                         type="scrape",
@@ -179,6 +181,7 @@ class ReActJobAgent:
                 search_results=search_results,
                 collected_jobs=collected_jobs,
                 profile=profile,
+                failed_domains=failed_domains,
             )
             if action.type == "search":
                 search_count += 1
@@ -245,12 +248,21 @@ What is your next action? Respond with JSON only."""
         search_results: dict[str, SearchResult],
         collected_jobs: list[ScoredJob],
         profile: UserProfile,
+        failed_domains: dict[str, int] | None = None,
     ) -> str:
+        failed_domains = failed_domains if failed_domains is not None else {}
         if action.type == "search":
             return await self._execute_search(action, search_results)
 
         if action.type == "scrape":
-            return await self._execute_scrape(action, scraped_urls, search_results, collected_jobs, profile)
+            return await self._execute_scrape(
+                action,
+                scraped_urls,
+                search_results,
+                collected_jobs,
+                profile,
+                failed_domains,
+            )
 
         if action.type == "score":
             return await self._execute_score(action, collected_jobs, profile)
@@ -292,10 +304,12 @@ What is your next action? Respond with JSON only."""
         search_results: dict[str, SearchResult],
         collected_jobs: list[ScoredJob],
         profile: UserProfile,
+        failed_domains: dict[str, int] | None = None,
     ) -> str:
+        failed_domains = failed_domains if failed_domains is not None else {}
         url = normalize_url(str(action.input.get("url") or "").strip())
         if not url:
-            url = self._next_unscraped_url(search_results, scraped_urls)
+            url = self._next_unscraped_url(search_results, scraped_urls, failed_domains)
         if not url:
             return "Scrape skipped: no URL provided and no pending search result is available."
         if url in scraped_urls:
@@ -307,6 +321,7 @@ What is your next action? Respond with JSON only."""
         logger.debug("Scraping: %s", url)
         page: ScrapedPage = await self.scraper.scrape(url, retries=settings.SCRAPLING_RETRIES)
         if not page.success:
+            self._record_domain_failure(failed_domains, url)
             return f"Scraping failed: {page.error}"
 
         if is_aggregate_url(url):
@@ -329,6 +344,7 @@ What is your next action? Respond with JSON only."""
 
         extracted = await self.extractor.extract(page.text_content, url)
         if not extracted.is_valid_job:
+            self._record_domain_failure(failed_domains, url)
             return "Page is not a valid job listing."
 
         assessment = assess_job_quality(
@@ -483,21 +499,38 @@ Languages: {', '.join(profile.languages)}"""
         skills = " ".join((profile.skills or [])[:3])
         locations = profile.preferred_locations or ["Pakistan", "Remote"]
         base = " ".join(part for part in [title, skills] if part).strip()
+        location = locations[0] if locations else "Pakistan"
         return [
-            f'site:pk.linkedin.com/jobs/view {base} Pakistan',
-            f'site:pk.linkedin.com/jobs/view {base} {locations[0]}',
-            f'site:rozee.pk/job {base}',
-            f'site:mustakbil.com/jobs/job {base}',
+            f'site:mustakbil.com/jobs/job {base} {location} Pakistan',
+            f'site:rozee.pk/job {base} {location} Pakistan',
+            f'site:bayt.com/en/pakistan/jobs {base}',
             f'site:applytojob.com/apply {base} Pakistan',
-            f'{base} jobs Pakistan',
+            f'{base} jobs Pakistan -linkedin',
             f'{base} remote jobs open to Pakistan',
         ]
 
-    def _next_unscraped_url(self, search_results: dict[str, SearchResult], scraped_urls: set[str]) -> str:
+    def _next_unscraped_url(
+        self,
+        search_results: dict[str, SearchResult],
+        scraped_urls: set[str],
+        failed_domains: dict[str, int] | None = None,
+    ) -> str:
         for url in search_results:
+            if url in scraped_urls:
+                continue
+            domain = self._domain(url)
+            if failed_domains and failed_domains.get(domain, 0) >= 2:
+                continue
             if url not in scraped_urls:
                 return url
         return ""
+
+    def _record_domain_failure(self, failed_domains: dict[str, int], url: str) -> None:
+        domain = self._domain(url)
+        failed_domains[domain] = failed_domains.get(domain, 0) + 1
+
+    def _domain(self, url: str) -> str:
+        return urlparse(url).netloc.lower().removeprefix("www.")
 
     def _combine_reasons(self, llm_reason: str, quality_reasons: list[str]) -> str:
         reason = str(llm_reason or "No reason provided.").strip()

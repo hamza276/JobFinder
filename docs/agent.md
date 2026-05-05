@@ -34,5 +34,5 @@ A fixed scraper with hardcoded queries quickly becomes stale. The ReAct agent:
 - Google OAuth can be added in a later phase.
 
 ## Notes
-- This is a pure AI-as-a-service job discovery product, not a cybersecurity product.
+- This is an AI-enabled SaaS job discovery product.
 - If docs behavior guidance changes, update this `agent.md` in the same task.

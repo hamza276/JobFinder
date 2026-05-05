@@ -30,6 +30,8 @@ UserProfile
 ## Quality Rules
 - Do not save aggregate/search/category URLs as final jobs.
 - Do not spend scrape budget on generic root/index URLs such as job-board homepages or bare `/jobs` pages.
+- Prefer accessible sources such as Mustakbil, Rozee, Bayt, company career pages, and broad non-LinkedIn searches because LinkedIn currently returns signup walls through the hosted scraper.
+- Stop spending scrape budget on one failing domain after repeated scrape/invalid-page failures; move to the next available source.
 - Prefer detail URLs such as LinkedIn `/jobs/view/...`, Rozee job pages, Mustakbil job pages, company apply pages, and similar detail pages.
 - Reject jobs missing title or company.
 - Reject stale postings older than `REACT_AGENT_MAX_JOB_AGE_DAYS`.
