@@ -56,11 +56,14 @@ class FakeScraper:
 
 class FakeExtractor:
     async def extract(self, text: str, url: str):
+        from datetime import datetime
+
         return ExtractedJob(
             title="React Developer",
             company="Acme",
             location="Karachi",
             job_type="full-time",
+            posted_at=datetime.utcnow(),
             description_clean="Build React products.",
             description_short="Frontend role.",
             required_skills=["React", "TypeScript"],
@@ -141,6 +144,7 @@ class ReActAgentTests(unittest.TestCase):
                             "title": "React Frontend Engineer",
                             "company": "Acme",
                             "location": "Remote",
+                            "posted_at": __import__("datetime").datetime.utcnow(),
                             "description_clean": "Build React interfaces",
                             "description_short": "Backend role",
                             "required_skills": ["React"],
@@ -214,6 +218,7 @@ class ReActAgentTests(unittest.TestCase):
         self.assertIn("rozee.pk", queries[1])
         self.assertTrue(any("-linkedin" in query for query in queries))
         self.assertTrue(all("linkedin.com" not in query for query in queries))
+        self.assertTrue(all("last 3 days" in query for query in queries))
 
     def test_next_unscraped_url_skips_domains_after_repeated_failures(self):
         agent = self.make_agent(FakeLLM())

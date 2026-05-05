@@ -394,6 +394,7 @@ What is your next action? Respond with JSON only."""
             job_type=job_data.get("job_type"),
             salary_range=job_data.get("salary_range"),
             posted_date_raw=job_data.get("posted_date_raw"),
+            posted_at=job_data.get("posted_at"),
             description_clean=job_data.get("description_clean", ""),
             description_short=job_data.get("description_short", ""),
             required_skills=job_data.get("required_skills", []),
@@ -444,9 +445,11 @@ JOB:
 - Title: {job_data.get('title')}
 - Company: {job_data.get('company')}
 - Location: {job_data.get('location')}
+- Posted at: {job_data.get('posted_at') or job_data.get('posted_date_raw')}
 - Required skills: {', '.join(job_data.get('required_skills') or [])}
 - Job type: {job_data.get('job_type')}
 
+Only score fresh jobs that are clearly posted within the last {settings.REACT_AGENT_MAX_JOB_AGE_DAYS} days.
 Give a Pakistan-location bonus only if the job is in Pakistan or explicitly remote/open to Pakistan/global/APAC candidates.
 Penalize roles where required experience or seniority is above the user's profile.
 Respond in JSON: {{"score": 0.0, "reason": "1-sentence explanation"}}"""
@@ -500,13 +503,14 @@ Languages: {', '.join(profile.languages)}"""
         locations = profile.preferred_locations or ["Pakistan", "Remote"]
         base = " ".join(part for part in [title, skills] if part).strip()
         location = locations[0] if locations else "Pakistan"
+        recency = "posted today OR yesterday OR last 3 days OR new"
         return [
-            f'site:mustakbil.com/jobs/job {base} {location} Pakistan',
-            f'site:rozee.pk/job {base} {location} Pakistan',
-            f'site:bayt.com/en/pakistan/jobs {base}',
-            f'site:applytojob.com/apply {base} Pakistan',
-            f'{base} jobs Pakistan -linkedin',
-            f'{base} remote jobs open to Pakistan',
+            f'site:mustakbil.com/jobs/job {base} {location} Pakistan {recency}',
+            f'site:rozee.pk/job {base} {location} Pakistan {recency}',
+            f'site:bayt.com/en/pakistan/jobs {base} {recency}',
+            f'site:applytojob.com/apply {base} Pakistan {recency}',
+            f'{base} jobs Pakistan -linkedin {recency}',
+            f'{base} remote jobs open to Pakistan {recency}',
         ]
 
     def _next_unscraped_url(

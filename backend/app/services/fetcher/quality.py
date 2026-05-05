@@ -169,7 +169,7 @@ def assess_job_quality(
     source_url: str,
     *,
     now: datetime | None = None,
-    max_age_days: int = 90,
+    max_age_days: int = 3,
 ) -> QualityAssessment:
     now = now or datetime.utcnow()
     reasons: list[str] = []
@@ -191,14 +191,13 @@ def assess_job_quality(
     if not _has_location_fit(profile, job, normalized_text):
         return QualityAssessment(False, 0.35, 0.5, ["location is not eligible for the user's Pakistan/remote preference"])
 
-    if job.posted_at:
-        age_days = max(0, (now - job.posted_at.replace(tzinfo=None)).days)
-        if age_days > max_age_days:
-            return QualityAssessment(False, 0.35, 0.5, [f"posting is older than {max_age_days} days"])
-        if age_days > 45:
-            score_cap = min(score_cap, 0.75)
-            multiplier *= 0.85
-            reasons.append("posting is older than 45 days")
+    if not job.posted_at:
+        return QualityAssessment(False, 0.4, 0.5, ["posting date is missing; latest-only scans require a date"])
+
+    age_days = max(0, (now - job.posted_at.replace(tzinfo=None)).days)
+    if age_days > max_age_days:
+        return QualityAssessment(False, 0.35, 0.5, [f"posting is older than {max_age_days} days"])
+    reasons.append(f"posting is within {max_age_days} days")
 
     seniority_cap = _seniority_score_cap(profile.experience_years, normalized_text)
     if seniority_cap < 1.0:

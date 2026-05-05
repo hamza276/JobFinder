@@ -58,7 +58,7 @@ class QualityTests(unittest.TestCase):
                 title="Frontend Engineer",
                 company="Acme",
                 location="Karachi",
-                posted_at=datetime.utcnow() - timedelta(days=120),
+                posted_at=datetime.utcnow() - timedelta(days=4),
                 description_clean="React TypeScript role.",
                 required_skills=["React", "TypeScript"],
                 is_valid_job=True,
@@ -69,6 +69,41 @@ class QualityTests(unittest.TestCase):
         self.assertFalse(assessment.accepted)
         self.assertIn("older", " ".join(assessment.reasons))
 
+    def test_accepts_jobs_posted_within_three_days(self):
+        assessment = assess_job_quality(
+            make_profile(),
+            ExtractedJob(
+                title="Frontend Engineer",
+                company="Acme",
+                location="Karachi",
+                posted_at=datetime.utcnow() - timedelta(days=2),
+                description_clean="React TypeScript role.",
+                required_skills=["React", "TypeScript"],
+                is_valid_job=True,
+            ),
+            "https://example.com/jobs/123",
+        )
+
+        self.assertTrue(assessment.accepted)
+        self.assertIn("within 3 days", " ".join(assessment.reasons))
+
+    def test_rejects_missing_posted_date_for_latest_only_scans(self):
+        assessment = assess_job_quality(
+            make_profile(),
+            ExtractedJob(
+                title="Frontend Engineer",
+                company="Acme",
+                location="Karachi",
+                description_clean="React TypeScript role.",
+                required_skills=["React", "TypeScript"],
+                is_valid_job=True,
+            ),
+            "https://example.com/jobs/123",
+        )
+
+        self.assertFalse(assessment.accepted)
+        self.assertIn("missing", " ".join(assessment.reasons))
+
     def test_caps_seniority_mismatch(self):
         assessment = assess_job_quality(
             make_profile(experience_years=2),
@@ -76,6 +111,7 @@ class QualityTests(unittest.TestCase):
                 title="Principal Frontend Engineer",
                 company="Acme",
                 location="Karachi",
+                posted_at=datetime.utcnow(),
                 description_clean="Principal frontend role requiring React and TypeScript.",
                 required_skills=["React", "TypeScript"],
                 is_valid_job=True,
@@ -93,6 +129,7 @@ class QualityTests(unittest.TestCase):
                 title="Senior Full Stack Developer",
                 company="Acme",
                 location="Pakistan",
+                posted_at=datetime.utcnow(),
                 description_clean="Build React and Next.js applications with backend APIs.",
                 required_skills=["React", "Next.js"],
                 is_valid_job=True,
@@ -111,6 +148,7 @@ class QualityTests(unittest.TestCase):
                 company="Acme",
                 location="Pakistan",
                 job_type="part-time",
+                posted_at=datetime.utcnow(),
                 description_clean="Part-time React role.",
                 required_skills=["React"],
                 is_valid_job=True,
@@ -128,6 +166,7 @@ class QualityTests(unittest.TestCase):
                 title="Principal Frontend Engineer",
                 company="Acme",
                 location="Karachi",
+                posted_at=datetime.utcnow(),
                 description_clean="Principal frontend role requiring React and TypeScript.",
                 required_skills=["React", "TypeScript"],
                 is_valid_job=True,

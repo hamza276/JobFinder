@@ -34,7 +34,8 @@ UserProfile
 - Stop spending scrape budget on one failing domain after repeated scrape/invalid-page failures; move to the next available source.
 - Prefer detail URLs such as LinkedIn `/jobs/view/...`, Rozee job pages, Mustakbil job pages, company apply pages, and similar detail pages.
 - Reject jobs missing title or company.
-- Reject stale postings older than `REACT_AGENT_MAX_JOB_AGE_DAYS`.
+- Reject postings older than `REACT_AGENT_MAX_JOB_AGE_DAYS`; default is 3 days for latest-only scans.
+- Reject jobs with missing posting dates because max-3-days freshness cannot be verified.
 - Reject remote jobs that are tied to a foreign country unless the text indicates worldwide/APAC/global/Pakistan eligibility.
 - Cap scores for seniority mismatch, e.g. principal/staff/lead roles for low-experience profiles.
 - Cap scores for role mismatch, e.g. full-stack/backend roles for a frontend profile.
@@ -52,7 +53,7 @@ REACT_AGENT_MAX_SEARCHES=8
 REACT_AGENT_MAX_SCRAPES=14
 REACT_AGENT_SCAN_TIMEOUT_SECONDS=600
 REACT_AGENT_MIN_RELEVANCE_SCORE=0.55
-REACT_AGENT_MAX_JOB_AGE_DAYS=90
+REACT_AGENT_MAX_JOB_AGE_DAYS=3
 REACT_AGENT_SEARCH_RESULTS_PER_QUERY=20
 SCRAPLING_RETRIES=2
 SCRAPLING_API_URL=https://scraplingbackend.app.digitalsgalaxy.com
